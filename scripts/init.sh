@@ -1,50 +1,48 @@
 #!/usr/bin/env bash
 
+export PATH=$PATH:/usr/local/bin
+
 echo "Installing dependencies ..."
-sudo apt-get update
-sudo apt-get install -y unzip curl jq dnsutils
+yum -y makecache
+yum -y install unzip curl
 
-echo "Determining Consul version to install ..."
-CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
-if [ -z "$CONSUL_DEMO_VERSION" ]; then
-    CONSUL_DEMO_VERSION=$(curl -s "${CHECKPOINT_URL}"/consul | jq .current_version | tr -d '"')
-fi
+echo "Installing Consul version ${CONSUL_VERSION} ..."
+curl -s -O https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip
+curl -s -O https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS
+curl -s -O https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS.sig
 
-echo "Fetching Consul version ${CONSUL_DEMO_VERSION} ..."
-cd /tmp/
-curl -s https://releases.hashicorp.com/consul/${CONSUL_DEMO_VERSION}/consul_${CONSUL_DEMO_VERSION}_linux_amd64.zip -o consul.zip
+unzip consul_${CONSUL_VERSION}_linux_amd64.zip
+chown root:root consul
+chmod 0755 consul
+mv consul /usr/local/bin
 
-echo "Installing Consul version ${CONSUL_DEMO_VERSION} ..."
-unzip consul.zip
-sudo chmod +x consul
-sudo chown root:root consul
-sudo mv consul /usr/local/bin/consul
-sudo cp /vagrant/systemd/consul.service /etc/systemd/system/consul.service
-sudo systemctl daemon-reload
+consul -autocomplete-install
+complete -C /usr/local/bin/consul consul
 
 echo "Creating Consul service account ..."
-sudo useradd -r -d /etc/consul.d -s /bin/false consul
+useradd -r -d /etc/consul.d -s /bin/false consul
 
 echo "Creating Consul directory structure ..."
-sudo mkdir /etc/consul /etc/consul.d
-sudo chown root:consul /etc/consul /etc/consul.d
-sudo chmod 0750 /etc/consul /etc/consul.d
-sudo mkdir /var/lib/consul
-sudo chown consul:consul /var/lib/consul
-sudo chmod 0750 /var/lib/consul
+mkdir /etc/consul{,.d}
+chown root:consul /etc/consul{,.d}
+chmod 0750 /etc/consul{,.d}
+
+mkdir /var/lib/consul
+chown consul:consul /var/lib/consul
+chmod 0750 /var/lib/consul
 
 echo "Copy PKI certificates ..."
-sudo cp /vagrant/pki/{client,server,cli}*.pem /etc/consul
-sudo cp /vagrant/pki/ca.pem /etc/consul
-sudo chown root:consul /etc/consul/*
-sudo chmod 0640 /etc/consul/*
+cp /vagrant/pki/server{,-key}.pem /etc/consul
+cp /vagrant/pki/ca.pem /etc/consul
+chown root:consul /etc/consul/*
+chmod 0640 /etc/consul/*
 
 echo "Creating Consul config ..."
 NETWORK_INTERFACE=$(ls -1 /sys/class/net | grep -v lo | sort -r | head -n 1)
 IP_ADDRESS=$(ip address show $NETWORK_INTERFACE | awk '{print $2}' | egrep -o '([0-9]+\.){3}[0-9]+')
 HOSTNAME=$(hostname -s)
 
-sudo tee /etc/consul.d/consul.json << EOF
+cat > /etc/consul.d/consul.json << EOF
 {
     "datacenter": "demo",
     "node_name": "${HOSTNAME}",
@@ -69,13 +67,36 @@ sudo tee /etc/consul.d/consul.json << EOF
     "verify_server_hostname": true,
     "acl": {
         "enabled": true,
+        "default_policy": "deny",
         "down_policy": "extend-cache"
     }
 }
 EOF
 
-sudo chown root:consul /etc/consul.d/consul.json
-sudo chmod 0640 /etc/consul.d/consul.json
+chown root:consul /etc/consul.d/consul.json
+chmod 0640 /etc/consul.d/consul.json
 
-sudo systemctl enable consul
-sudo systemctl restart consul
+cat > /etc/systemd/system/consul.service << EOF
+[Unit]
+Description="HashiCorp Consul - A service mesh solution"
+Documentation=https://www.consul.io/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/consul.d/consul.json
+
+[Service]
+User=consul
+Group=consul
+ExecStart=/usr/local/bin/consul agent -config-dir=/etc/consul.d/
+ExecReload=/usr/local/bin/consul reload
+KillMode=process
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable consul
+systemctl restart consul

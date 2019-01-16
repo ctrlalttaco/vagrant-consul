@@ -34,7 +34,7 @@ Follow the [Consul ACL Guide](https://learn.hashicorp.com/consul/advanced/day-1-
 
 Example Policy:
 
-``` json
+```
 node "consul0" {
     policy = "write"
 }

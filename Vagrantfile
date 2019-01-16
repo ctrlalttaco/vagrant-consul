@@ -4,10 +4,10 @@
 DEBIAN_FRONTEND="noninteractive"
 
 # Specify a Consul version
-CONSUL_DEMO_VERSION = ENV['CONSUL_DEMO_VERSION']
+CONSUL_VERSION = ENV['CONSUL_VERSION'] || "1.4.0"
 
 # Specify a custom Vagrant box for the demo
-DEMO_BOX_NAME = ENV['DEMO_BOX_NAME'] || "ubuntu/bionic64"
+DEMO_BOX_NAME = ENV['DEMO_BOX_NAME'] || "centos/7"
 
 # Vagrantfile API/syntax version.
 # NB: Don't touch unless you know what you're doing!
@@ -18,7 +18,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.provision "shell",
                           path: "scripts/init.sh",
-                          env: {'CONSUL_DEMO_VERSION' => CONSUL_DEMO_VERSION}
+                          env: {'CONSUL_VERSION' => CONSUL_VERSION}
 
   config.vm.define "consul0" do |n1|
       n1.vm.hostname = "consul0"
