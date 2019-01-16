@@ -6,6 +6,9 @@ DEBIAN_FRONTEND="noninteractive"
 # Specify a Consul version
 CONSUL_VERSION = ENV['CONSUL_VERSION'] || "1.4.0"
 
+# Specify if Consul ACL should be enabled
+CONSUL_ACL = ENV['CONSUL_ACL'] || "false"
+
 # Specify a custom Vagrant box for the demo
 DEMO_BOX_NAME = ENV['DEMO_BOX_NAME'] || "centos/7"
 
@@ -18,7 +21,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.provision "shell",
                           path: "scripts/init.sh",
-                          env: {'CONSUL_VERSION' => CONSUL_VERSION}
+                          env: {
+                              'CONSUL_VERSION' => CONSUL_VERSION,
+                              'CONSUL_ACL' => CONSUL_ACL
+                              }
 
   config.vm.define "consul0" do |n1|
       n1.vm.hostname = "consul0"

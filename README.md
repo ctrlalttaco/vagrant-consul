@@ -28,7 +28,13 @@ consul2 - `172.20.20.12`
 vagrant up
 ```
 
-### ACL Policies
+## Environment Variables
+
+`CONSUL_VERSION` - Specify the version of Consul to use
+
+`CONSUL_ACL` - Set to `true` to enable ACL on Consul
+
+## ACL Policies
 
 Follow the [Consul ACL Guide](https://learn.hashicorp.com/consul/advanced/day-1-operations/acl-guide) to bootstrap and configure the agent token.
 

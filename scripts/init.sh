@@ -64,7 +64,18 @@ cat > /etc/consul.d/consul.json << EOF
     "cert_file": "/etc/consul/server.pem",
     "ca_file": "/etc/consul/ca.pem",
     "verify_outgoing": true,
-    "verify_server_hostname": true,
+    "verify_server_hostname": true
+}
+EOF
+
+chown root:consul /etc/consul.d/consul.json
+chmod 0640 /etc/consul.d/consul.json
+
+# ACL configuration
+if [ $CONSUL_ACL != "false" ]
+then
+  cat > /etc/consul.d/acl.json << EOF
+{
     "acl": {
         "enabled": true,
         "default_policy": "deny",
@@ -73,8 +84,11 @@ cat > /etc/consul.d/consul.json << EOF
 }
 EOF
 
-chown root:consul /etc/consul.d/consul.json
-chmod 0640 /etc/consul.d/consul.json
+  chown root:consul /etc/consul.d/acl.json
+  chmod 0640 /etc/consul.d/acl.json
+fi
+
+
 
 cat > /etc/systemd/system/consul.service << EOF
 [Unit]
